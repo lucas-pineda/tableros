@@ -1,0 +1,833 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Panel MVCT</title>
+<style>
+:root{
+  color-scheme: light;
+  --surface:#fcfcfb; --page:#f9f9f7; --text:#0b0b0b; --text2:#52514e; --muted:#898781;
+  --grid:#e1e0d9; --baseline:#c3c2b7; --border:rgba(11,11,11,0.10);
+  --accent:#2a78d6; --accent-ink:#ffffff; --aqua:#1baf7a; --orange:#eb6834; --yellow:#eda100;
+  --magenta:#e87ba4; --green:#008300; --violet:#4a3aa7; --red:#e34948;
+  --good:#0ca30c; --warn:#fab219; --serious:#ec835a; --crit:#d03b3b;
+  --seq-100:#cde2fb; --seq-250:#86b6ef; --seq-400:#3987e5; --seq-550:#1c5cab; --seq-700:#0d366b;
+  --shadow: 0 8px 24px rgba(20,20,20,.12);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme: dark;
+    --surface:#1a1a19; --page:#0d0d0d; --text:#ffffff; --text2:#c3c2b7; --muted:#898781;
+    --grid:#2c2c2a; --baseline:#383835; --border:rgba(255,255,255,0.12);
+    --accent:#3987e5; --accent-ink:#ffffff; --aqua:#199e70; --orange:#d95926; --yellow:#c98500;
+    --magenta:#d55181; --green:#3fbf3f; --violet:#9085e9; --red:#e66767;
+    --good:#0ca30c; --warn:#fab219; --serious:#ec835a; --crit:#e66767;
+    --shadow: 0 8px 24px rgba(0,0,0,.5);
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --surface:#1a1a19; --page:#0d0d0d; --text:#ffffff; --text2:#c3c2b7; --muted:#898781;
+  --grid:#2c2c2a; --baseline:#383835; --border:rgba(255,255,255,0.12);
+  --accent:#3987e5; --accent-ink:#ffffff; --aqua:#199e70; --orange:#d95926; --yellow:#c98500;
+  --magenta:#d55181; --green:#3fbf3f; --violet:#9085e9; --red:#e66767;
+  --good:#0ca30c; --warn:#fab219; --serious:#ec835a; --crit:#e66767;
+  --shadow: 0 8px 24px rgba(0,0,0,.5);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--text);font-family:"Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;font-size:14px;-webkit-font-smoothing:antialiased}
+::selection{background:var(--accent);color:#fff}
+h1,h2,h3{text-wrap:balance;margin:0}
+button,input{font-family:inherit}
+.tabular{font-variant-numeric:tabular-nums}
+
+/* ---------- top bar ---------- */
+.topbar{position:sticky;top:env(safe-area-inset-top,0px);z-index:40;background:var(--surface);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:14px;padding:10px 18px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px;min-width:0}
+.brand .mark{width:34px;height:34px;border-radius:8px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex:none}
+.brand .name{font-size:11.5px;line-height:1.25;color:var(--text2);max-width:230px}
+.brand .name b{color:var(--text);display:block;font-size:12.5px}
+.updated{font-size:11px;color:var(--muted);margin-left:4px;white-space:nowrap}
+.topbar .spacer{flex:1}
+.themetoggle{border:1px solid var(--border);background:transparent;color:var(--text2);border-radius:8px;width:32px;height:32px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.themetoggle:hover{color:var(--text);border-color:var(--accent)}
+
+.tabs{display:flex;gap:4px;overflow-x:auto;padding:8px 18px 0;background:var(--surface);border-bottom:1px solid var(--border)}
+.tab{border:none;background:transparent;color:var(--text2);padding:9px 14px;font-size:12.5px;font-weight:600;letter-spacing:.01em;
+  border-radius:8px 8px 0 0;cursor:pointer;white-space:nowrap;border-bottom:2px solid transparent}
+.tab:hover{color:var(--text);background:var(--page)}
+.tab.active{color:var(--accent);border-bottom:2px solid var(--accent);background:var(--page)}
+
+/* ---------- layout ---------- */
+.shell{display:flex;align-items:flex-start;min-width:0}
+.sidebar{width:230px;flex:none;padding:16px 12px;position:sticky;top:calc(env(safe-area-inset-top,0px) + 96px);
+  max-height:calc(100vh - 110px);overflow:auto}
+.main{flex:1;min-width:0;padding:16px 18px 48px}
+@media (max-width: 860px){
+  .shell{flex-direction:column}
+  .sidebar{width:100%;position:static;max-height:none}
+}
+
+.section-title{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 8px 2px}
+.filter-block{margin-bottom:16px}
+
+/* ---------- multiselect ---------- */
+.msel{position:relative}
+.msel-btn{width:100%;text-align:left;display:flex;align-items:center;justify-content:space-between;gap:8px;
+  border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:8px;padding:8px 10px;
+  font-size:12.5px;cursor:pointer}
+.msel-btn:hover{border-color:var(--accent)}
+.msel-btn .chev{color:var(--muted);font-size:10px;flex:none}
+.msel-btn .txt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.msel-count{background:var(--accent);color:#fff;border-radius:99px;font-size:10px;padding:1px 6px;flex:none}
+.msel-panel{position:absolute;z-index:60;top:calc(100% + 4px);left:0;width:min(320px,86vw);background:var(--surface);
+  border:1px solid var(--border);border-radius:10px;box-shadow:var(--shadow);padding:8px;display:none}
+.msel-panel.open{display:block}
+.msel-search{width:100%;border:1px solid var(--border);background:var(--page);color:var(--text);border-radius:7px;
+  padding:7px 9px;font-size:12.5px;margin-bottom:6px}
+.msel-list{max-height:230px;overflow:auto;display:flex;flex-direction:column;gap:1px}
+.msel-item{display:flex;align-items:center;gap:8px;padding:6px 7px;border-radius:6px;cursor:pointer;font-size:12.5px}
+.msel-item:hover{background:var(--page)}
+.msel-item input{accent-color:var(--accent)}
+.msel-item .cnt{margin-left:auto;color:var(--muted);font-size:11px}
+.msel-foot{display:flex;justify-content:space-between;padding-top:6px;margin-top:4px;border-top:1px solid var(--border)}
+.msel-link{background:none;border:none;color:var(--accent);font-size:11.5px;cursor:pointer;padding:4px 2px}
+
+.filters-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;margin-bottom:16px}
+
+/* ---------- page heading ---------- */
+.pagehead{margin:6px 0 16px}
+.pagehead h1{font-size:22px;color:var(--accent);font-weight:700}
+.pagehead p{margin:4px 0 0;color:var(--text2);font-size:13px;max-width:70ch}
+
+/* ---------- kpis ---------- */
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-bottom:16px}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:13px 15px}
+.kpi .label{font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);display:flex;align-items:center;gap:6px}
+.kpi .dot{width:7px;height:7px;border-radius:99px;background:var(--accent);flex:none}
+.kpi .value{font-size:21px;font-weight:700;color:var(--text);margin-top:4px;letter-spacing:-.01em}
+.kpi .sub{font-size:11px;color:var(--muted);margin-top:2px}
+
+/* ---------- cards / grid ---------- */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px}
+@media (max-width: 900px){.grid2,.grid3{grid-template-columns:1fr}}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;min-width:0}
+.card-h{background:var(--accent);color:var(--accent-ink);padding:8px 14px;font-size:11px;font-weight:700;
+  letter-spacing:.05em;text-transform:uppercase;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.card-h span.n{font-weight:600;opacity:.85;font-size:10.5px;text-transform:none;letter-spacing:0}
+.card-b{padding:12px 14px}
+.card-b.pad0{padding:0}
+.empty-note{color:var(--muted);font-size:12px;padding:20px 0;text-align:center}
+
+/* ---------- legend ---------- */
+.legend{display:flex;flex-wrap:wrap;gap:10px 14px;margin-top:8px;font-size:11.5px;color:var(--text2)}
+.legend .li{display:flex;align-items:center;gap:6px}
+.legend .sw{width:9px;height:9px;border-radius:2px;flex:none}
+
+/* ---------- tooltip ---------- */
+.viztip{position:fixed;z-index:100;background:var(--surface);border:1px solid var(--border);border-radius:8px;
+  box-shadow:var(--shadow);padding:8px 10px;font-size:12px;color:var(--text);pointer-events:none;opacity:0;
+  transition:opacity .08s;max-width:240px}
+.viztip b{display:block;margin-bottom:2px}
+.viztip .row{display:flex;justify-content:space-between;gap:10px;color:var(--text2)}
+
+/* ---------- tables ---------- */
+.tbl-search{width:100%;border:1px solid var(--border);background:var(--page);color:var(--text);border-radius:8px;
+  padding:8px 10px 8px 30px;font-size:12.5px;margin:12px 14px 0;width:calc(100% - 28px);background-repeat:no-repeat;
+  background-position:9px center;background-size:13px}
+.tbl-wrap{overflow-x:auto;padding:10px 14px 6px}
+table.dtbl{border-collapse:collapse;width:100%;min-width:560px;font-size:12.3px}
+table.dtbl th{position:sticky;top:0;background:var(--page);color:var(--text2);text-align:left;font-weight:700;
+  font-size:10.5px;letter-spacing:.04em;text-transform:uppercase;padding:8px 10px;border-bottom:1px solid var(--border);white-space:nowrap}
+table.dtbl td{padding:7px 10px;border-bottom:1px solid var(--grid);color:var(--text);white-space:nowrap;max-width:220px;overflow:hidden;text-overflow:ellipsis}
+table.dtbl tr:hover td{background:var(--page)}
+.tbl-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;font-size:11.5px;color:var(--text2)}
+.pager{display:flex;align-items:center;gap:4px}
+.pgbtn{border:1px solid var(--border);background:var(--surface);color:var(--text2);border-radius:6px;
+  width:26px;height:26px;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center}
+.pgbtn:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
+.pgbtn:disabled{opacity:.35;cursor:default}
+
+.badge{display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:600}
+.badge.on{background:color-mix(in srgb, var(--good) 16%, transparent);color:var(--good)}
+.badge.off{background:color-mix(in srgb, var(--crit) 16%, transparent);color:var(--crit)}
+
+.footer-note{color:var(--muted);font-size:11px;text-align:center;padding:20px 0 8px}
+
+svg text{fill:var(--text2)}
+.axis path,.axis line{stroke:var(--baseline)}
+.gridline{stroke:var(--grid)}
+</style>
+
+<div id="app">
+  <div class="topbar">
+    <div class="brand">
+      <div class="mark">MV</div>
+      <div class="name"><b>Ministerio de Vivienda, Ciudad y Territorio</b>Panel de control &mdash; seguimiento de proyectos</div>
+    </div>
+    <div class="updated" id="updatedLbl"></div>
+    <div class="spacer"></div>
+    <button class="themetoggle" id="themeBtn" title="Cambiar tema" aria-label="Cambiar tema">&#9788;</button>
+  </div>
+  <div class="tabs" id="tabsRow"></div>
+  <div class="shell">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="main" id="mainArea"></main>
+  </div>
+  <div class="footer-note">Fuente: Tablero Control FINAL (normalizado con codificación DIVIPOLA-DANE) &middot; cifras en pesos colombianos (COP)</div>
+</div>
+<div class="viztip" id="viztip"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<script src="data.js"></script>
+<script src="geo.js"></script>
+<script>
+/* =========================================================================
+   PANEL MVCT — dashboard engine (shared across the 5 sheet tabs)
+   ========================================================================= */
+(function(){
+"use strict";
+
+const fmtCOP = n => "$ " + Math.round(n||0).toLocaleString("es-CO");
+const fmtCOPShort = n => {
+  n = n||0;
+  if (Math.abs(n) >= 1e12) return "$ " + (n/1e12).toLocaleString("es-CO",{maximumFractionDigits:1}) + " b";
+  if (Math.abs(n) >= 1e9)  return "$ " + (n/1e9).toLocaleString("es-CO",{maximumFractionDigits:1}) + " mm";
+  if (Math.abs(n) >= 1e6)  return "$ " + (n/1e6).toLocaleString("es-CO",{maximumFractionDigits:1}) + " M";
+  return fmtCOP(n);
+};
+const fmtNum = n => Math.round(n||0).toLocaleString("es-CO");
+const fmtDate = s => { if(!s) return "—"; const d=new Date(s+"T00:00:00"); if(isNaN(d)) return s;
+  return d.toLocaleDateString("es-CO",{day:"2-digit",month:"short",year:"numeric"}); };
+const CAT = [getVar("--accent"),getVar("--aqua"),getVar("--orange"),getVar("--yellow"),getVar("--magenta"),getVar("--green"),getVar("--violet"),getVar("--red")];
+function getVar(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+const TODAY = new Date("2026-09-28T00:00:00");
+
+const SHEET_TABS = [
+  {key:"emergencia", tab:"Emergencia"},
+  {key:"fuera_emergencia", tab:"Fuera de Emergencia"},
+  {key:"viabilizar", tab:"Por Viabilizar"},
+  {key:"titulacion", tab:"Titulación"},
+  {key:"pda", tab:"PDA"},
+];
+
+const CFG = {
+  emergencia:        {donut:"viceministerio", donutLbl:"Viceministerio", ranked:"dependencia", rankedLbl:"Dependencia",
+                       kpi4:{field:"unidades_totales", label:"Unidades", agg:"sum"}},
+  fuera_emergencia:   {donut:"viceministerio", donutLbl:"Viceministerio", ranked:"dependencia", rankedLbl:"Dependencia",
+                       kpi4:{field:"unidades_totales", label:"Unidades", agg:"sum"}},
+  viabilizar:         {donut:"viceministerio", donutLbl:"Viceministerio", ranked:"tipo_proyecto", rankedLbl:"Tipo de Proyecto",
+                       kpi4:{field:"unidades_totales", label:"Unidades", agg:"sum"}},
+  titulacion:         {donut:"viceministerio", donutLbl:"Viceministerio", ranked:"dependencia", rankedLbl:"Dependencia",
+                       kpi4:{field:"entregados", label:"Predios Entregados", agg:"sum"}},
+  pda:                {donut:"componente", donutLbl:"Componente", ranked:"tipo_proyecto", rankedLbl:"Tipo de Proyecto",
+                       kpi4:{field:"municipio", label:"Municipios Cubiertos", agg:"distinct"}},
+};
+
+const FILTER_FIELDS = [
+  {field:"departamento", label:"Departamento"},
+  {field:"municipio", label:"Municipio"},
+  {field:"viceministerio", label:"Viceministerio"},
+  {field:"componente", label:"Componente"},
+  {field:"programa", label:"Programa"},
+  {field:"estado", label:"Estado"},
+  {field:"fuente_financiacion", label:"Fuente de Financiación"},
+  {field:"dependencia", label:"Dependencia"},
+  {field:"tipo_proyecto", label:"Tipo de Proyecto"},
+];
+
+const DATA = window.__PANEL_DATA__;
+const GEO = window.__PANEL_GEO__;
+
+const state = { activeTab: "emergencia", filters: {} };
+SHEET_TABS.forEach(s => state.filters[s.key] = {});
+
+/* ---------------- data helpers ---------------- */
+function sheetFields(key){
+  const recs = DATA[key].records;
+  const present = new Set();
+  for (let i=0;i<Math.min(recs.length,30);i++){ Object.keys(recs[i]).forEach(k=>present.add(k)); }
+  return present;
+}
+function applyFilters(key){
+  const recs = DATA[key].records;
+  const f = state.filters[key];
+  const active = Object.keys(f).filter(k => f[k] && f[k].size);
+  if (!active.length) return recs;
+  return recs.filter(r => active.every(k => f[k].has(r[k])));
+}
+function uniqueCounts(recs, field){
+  const m = new Map();
+  for (const r of recs){ const v = r[field]; if (v===undefined||v===null||v==="") continue;
+    m.set(v, (m.get(v)||0)+1); }
+  return m;
+}
+function sumBy(recs, groupField, valueField){
+  const m = new Map();
+  for (const r of recs){ const v = r[groupField]; if (v===undefined||v===null||v==="") continue;
+    m.set(v, (m.get(v)||0) + (Number(r[valueField])||0)); }
+  return m;
+}
+
+/* ---------------- tooltip ---------------- */
+const tip = document.getElementById("viztip");
+function showTip(html, evt){
+  tip.innerHTML = html; tip.style.opacity = 1;
+  const pad = 14, w = 240, vw = window.innerWidth, vh = window.innerHeight;
+  let x = evt.clientX + pad, y = evt.clientY + pad;
+  if (x + w > vw) x = evt.clientX - w - pad;
+  if (y + 90 > vh) y = evt.clientY - 90 - pad;
+  tip.style.left = x + "px"; tip.style.top = y + "px";
+}
+function hideTip(){ tip.style.opacity = 0; }
+
+/* ---------------- theme toggle ---------------- */
+(function initTheme(){
+  const root = document.documentElement;
+  const btn = document.getElementById("themeBtn");
+  function apply(t){ if(t){ root.setAttribute("data-theme",t);} else { root.removeAttribute("data-theme"); }
+    try{ localStorage.setItem("panelTheme", t||""); }catch(e){} }
+  let saved = ""; try{ saved = localStorage.getItem("panelTheme")||""; }catch(e){}
+  if (saved) apply(saved);
+  btn.addEventListener("click", () => {
+    const cur = root.getAttribute("data-theme");
+    const sysDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const curDark = cur ? cur==="dark" : sysDark;
+    apply(curDark ? "light" : "dark");
+    renderActiveTab();
+  });
+})();
+
+document.getElementById("updatedLbl").textContent = "Última actualización: lunes, 28 de septiembre de 2026";
+
+/* ==================== multiselect combobox ==================== */
+let openPanelEl = null;
+document.addEventListener("click", (e) => {
+  if (openPanelEl && !openPanelEl.contains(e.target) && !openPanelEl.__btn.contains(e.target)){
+    openPanelEl.classList.remove("open"); openPanelEl = null;
+  }
+});
+function buildMultiselect(container, key, field, label, options){
+  // options: [[value,count], ...] sorted desc by count
+  const wrap = document.createElement("div"); wrap.className = "msel";
+  const btn = document.createElement("button"); btn.type="button"; btn.className = "msel-btn";
+  const txt = document.createElement("span"); txt.className="txt"; txt.textContent = label;
+  const chev = document.createElement("span"); chev.className="chev"; chev.textContent = "▾";
+  btn.appendChild(txt); btn.appendChild(chev);
+  const panel = document.createElement("div"); panel.className = "msel-panel"; panel.__btn = btn;
+  const search = document.createElement("input"); search.type="text"; search.className="msel-search";
+  search.placeholder = "Buscar o seleccionar...";
+  const list = document.createElement("div"); list.className = "msel-list";
+  const foot = document.createElement("div"); foot.className = "msel-foot";
+  const clearBtn = document.createElement("button"); clearBtn.type="button"; clearBtn.className="msel-link"; clearBtn.textContent="Limpiar";
+  const closeBtn = document.createElement("button"); closeBtn.type="button"; closeBtn.className="msel-link"; closeBtn.textContent="Cerrar";
+  foot.appendChild(clearBtn); foot.appendChild(closeBtn);
+  panel.appendChild(search); panel.appendChild(list); panel.appendChild(foot);
+
+  function selSet(){
+    const f = state.filters[key];
+    if (!f[field]) f[field] = new Set();
+    return f[field];
+  }
+  function refreshLabel(){
+    const s = selSet();
+    if (s.size===0){ txt.textContent = label; btn.querySelector(".msel-count") && btn.querySelector(".msel-count").remove(); }
+    else {
+      txt.textContent = label;
+      let c = btn.querySelector(".msel-count");
+      if (!c){ c = document.createElement("span"); c.className="msel-count"; btn.insertBefore(c, chev); }
+      c.textContent = s.size;
+    }
+  }
+  function renderList(filterText){
+    list.innerHTML = "";
+    const ft = (filterText||"").toLowerCase();
+    const s = selSet();
+    options.filter(([v]) => !ft || String(v).toLowerCase().includes(ft)).forEach(([v,c]) => {
+      const item = document.createElement("label"); item.className = "msel-item";
+      const cb = document.createElement("input"); cb.type="checkbox"; cb.checked = s.has(v);
+      cb.addEventListener("change", () => {
+        if (cb.checked) s.add(v); else s.delete(v);
+        refreshLabel(); renderActiveTab();
+      });
+      const t = document.createElement("span"); t.textContent = v;
+      const cnt = document.createElement("span"); cnt.className="cnt"; cnt.textContent = c;
+      item.appendChild(cb); item.appendChild(t); item.appendChild(cnt);
+      list.appendChild(item);
+    });
+    if (!list.children.length){ const e=document.createElement("div"); e.className="empty-note"; e.textContent="Sin resultados"; list.appendChild(e); }
+  }
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const willOpen = !panel.classList.contains("open");
+    if (openPanelEl && openPanelEl !== panel) openPanelEl.classList.remove("open");
+    if (willOpen){ panel.classList.add("open"); openPanelEl = panel; search.value=""; renderList(""); search.focus(); }
+    else { panel.classList.remove("open"); openPanelEl = null; }
+  });
+  search.addEventListener("input", () => renderList(search.value));
+  clearBtn.addEventListener("click", () => { selSet().clear(); refreshLabel(); renderList(search.value); renderActiveTab(); });
+  closeBtn.addEventListener("click", () => { panel.classList.remove("open"); openPanelEl = null; });
+  refreshLabel();
+  wrap.appendChild(btn); wrap.appendChild(panel);
+  container.appendChild(wrap);
+}
+
+/* ==================== generic searchable / paginated table ==================== */
+function buildTable(container, columns, rows, opts){
+  opts = opts || {};
+  const pageSize = opts.pageSize || 5;
+  let filtered = rows, page = 0, sortCol = null, sortDir = 1;
+
+  const search = document.createElement("input");
+  search.type = "text"; search.className = "tbl-search"; search.placeholder = "Buscar en la tabla...";
+  search.style.backgroundImage = "none";
+  const wrapT = document.createElement("div"); wrapT.className = "tbl-wrap";
+  const table = document.createElement("table"); table.className = "dtbl";
+  const thead = document.createElement("thead"); const trh = document.createElement("tr");
+  columns.forEach(c => {
+    const th = document.createElement("th"); th.textContent = c.label; th.style.cursor="pointer";
+    th.addEventListener("click", () => {
+      if (sortCol === c.key) sortDir *= -1; else { sortCol = c.key; sortDir = 1; }
+      applySort(); page = 0; draw();
+    });
+    trh.appendChild(th);
+  });
+  thead.appendChild(trh); table.appendChild(thead);
+  const tbody = document.createElement("tbody"); table.appendChild(tbody);
+  wrapT.appendChild(table);
+  const foot = document.createElement("div"); foot.className = "tbl-foot";
+  const info = document.createElement("div");
+  const pager = document.createElement("div"); pager.className = "pager";
+  const prevBtn = document.createElement("button"); prevBtn.className="pgbtn"; prevBtn.textContent="‹";
+  const nextBtn = document.createElement("button"); nextBtn.className="pgbtn"; nextBtn.textContent="›";
+  pager.appendChild(prevBtn); pager.appendChild(nextBtn);
+  foot.appendChild(info); foot.appendChild(pager);
+
+  function applySort(){
+    if (sortCol==null) return;
+    const col = columns.find(c=>c.key===sortCol);
+    filtered.sort((a,b) => {
+      let av=a[sortCol], bv=b[sortCol];
+      if (col.num){ av = Number(av)||0; bv = Number(bv)||0; return (av-bv)*sortDir; }
+      av = (av==null?"":String(av)); bv = (bv==null?"":String(bv));
+      return av.localeCompare(bv)*sortDir;
+    });
+  }
+  function draw(){
+    const total = filtered.length;
+    const maxPage = Math.max(0, Math.ceil(total/pageSize)-1);
+    if (page>maxPage) page = maxPage;
+    const start = page*pageSize;
+    const pageRows = filtered.slice(start, start+pageSize);
+    tbody.innerHTML = "";
+    if (!pageRows.length){
+      const tr = document.createElement("tr"); const td = document.createElement("td");
+      td.colSpan = columns.length; td.className="empty-note"; td.textContent = "Sin registros";
+      tr.appendChild(td); tbody.appendChild(tr);
+    }
+    pageRows.forEach(r => {
+      const tr = document.createElement("tr");
+      columns.forEach(c => { const td = document.createElement("td"); const v = r[c.key];
+        td.textContent = c.fmt ? c.fmt(v) : (v==null?"—":v); td.title = td.textContent; tr.appendChild(td); });
+      tbody.appendChild(tr);
+    });
+    info.textContent = total ? `${start+1}–${Math.min(start+pageSize,total)} de ${total}` : "0 de 0";
+    prevBtn.disabled = page<=0; nextBtn.disabled = page>=maxPage;
+  }
+  search.addEventListener("input", () => {
+    const q = search.value.toLowerCase().trim();
+    filtered = !q ? rows.slice() : rows.filter(r => columns.some(c => String(r[c.key]==null?"":r[c.key]).toLowerCase().includes(q)));
+    applySort(); page = 0; draw();
+  });
+  prevBtn.addEventListener("click", () => { page = Math.max(0,page-1); draw(); });
+  nextBtn.addEventListener("click", () => { page += 1; draw(); });
+
+  container.appendChild(search); container.appendChild(wrapT); container.appendChild(foot);
+  draw();
+}
+
+/* ==================== chart helpers ==================== */
+function svgIn(container, height){
+  container.innerHTML = "";
+  const w = Math.max(280, container.clientWidth || 320);
+  const svg = d3.select(container).append("svg").attr("width","100%").attr("height",height)
+    .attr("viewBox",`0 0 ${w} ${height}`).attr("preserveAspectRatio","xMinYMin meet");
+  return {svg, w, h:height};
+}
+function noData(container, msg){
+  container.innerHTML = `<div class="empty-note">${msg||"No hay datos para los filtros seleccionados"}</div>`;
+}
+
+/* Horizontal ranked bar chart. data: [[label,value]] already sorted desc */
+function hbarChart(container, data, opts){
+  opts = opts||{};
+  if (!data.length) return noData(container);
+  const top = data.slice(0, opts.topN||12);
+  const rowH = 24, gap = 6, labelW = opts.labelW||130, valW = 74, pad = {t:6,r:10,b:6,l:10};
+  const h = pad.t+pad.b + top.length*(rowH+gap) - gap;
+  const {svg,w} = svgIn(container, h);
+  const barX0 = pad.l+labelW, barMaxW = Math.max(40, w-pad.r-valW-barX0);
+  const maxV = d3.max(top, d=>d[1]) || 1;
+  const x = d3.scaleLinear().domain([0,maxV]).range([0,barMaxW]);
+  const color = opts.color || getVar("--accent");
+  const g = svg.selectAll("g.row").data(top).enter().append("g").attr("class","row")
+    .attr("transform",(d,i)=>`translate(0,${pad.t + i*(rowH+gap)})`);
+  g.append("text").attr("x",pad.l).attr("y",rowH*0.68).attr("font-size",11.5).attr("fill",getVar("--text2"))
+    .text(d=>d[0].length>18?d[0].slice(0,17)+"…":d[0]).append("title").text(d=>d[0]);
+  g.append("rect").attr("x",barX0).attr("y",3).attr("height",rowH-6).attr("rx",4).attr("fill",getVar("--grid")).attr("width",barMaxW);
+  g.append("rect").attr("x",barX0).attr("y",3).attr("height",rowH-6).attr("rx",4).attr("fill",color)
+    .attr("width",d=>Math.max(2,x(d[1])))
+    .style("cursor","pointer")
+    .on("mousemove",(e,d)=>showTip(`<b>${d[0]}</b><div class="row"><span>${opts.valueLabel||"Valor"}</span><span>${opts.fmt?opts.fmt(d[1]):fmtNum(d[1])}</span></div>`,e))
+    .on("mouseleave",hideTip);
+  g.append("text").attr("x",d=>barX0+Math.max(2,x(d[1]))+6).attr("y",rowH*0.68).attr("font-size",11)
+    .attr("fill",getVar("--text")).attr("class","tabular")
+    .text(d=>opts.fmt?opts.fmt(d[1]):fmtNum(d[1]));
+}
+
+/* Donut chart with legend. data: [[label,value]] */
+function donutChart(container, data, opts){
+  opts = opts||{};
+  if (!data.length) return noData(container);
+  const sorted = data.slice().sort((a,b)=>b[1]-a[1]);
+  let top = sorted.slice(0, 7);
+  const rest = sorted.slice(7);
+  if (rest.length){ top.push(["Otros", d3.sum(rest,d=>d[1])]); }
+  const size = 200, r = size/2;
+  const {svg} = svgIn(container, size+56);
+  const g = svg.append("g").attr("transform",`translate(${r+6},${r+6})`);
+  const pie = d3.pie().value(d=>d[1]).sort(null);
+  const arc = d3.arc().innerRadius(r*0.56).outerRadius(r-4);
+  const arcH = d3.arc().innerRadius(r*0.56).outerRadius(r);
+  const total = d3.sum(top, d=>d[1]);
+  g.selectAll("path").data(pie(top)).enter().append("path")
+    .attr("d",arc).attr("fill",(d,i)=>CAT[i%CAT.length]).attr("stroke",getVar("--surface")).attr("stroke-width",2)
+    .style("cursor","pointer")
+    .on("mousemove",(e,d)=>{ d3.select(e.currentTarget).attr("d",arcH);
+      const pct = total? (d.data[1]/total*100).toFixed(1):0;
+      showTip(`<b>${d.data[0]}</b><div class="row"><span>${opts.valueLabel||"Proyectos"}</span><span>${fmtNum(d.data[1])}</span></div><div class="row"><span>Participación</span><span>${pct}%</span></div>`,e); })
+    .on("mouseleave",(e)=>{ d3.select(e.currentTarget).attr("d",arc); hideTip(); });
+  g.append("text").attr("text-anchor","middle").attr("y",-2).attr("font-size",18).attr("font-weight",700)
+    .attr("fill",getVar("--text")).text(fmtNum(total));
+  g.append("text").attr("text-anchor","middle").attr("y",16).attr("font-size",10).attr("fill",getVar("--muted"))
+    .text((opts.centerLabel||"total").toUpperCase());
+  // legend
+  const legWrap = document.createElement("div"); legWrap.className="legend";
+  top.forEach((d,i)=>{ const li=document.createElement("div"); li.className="li";
+    li.innerHTML = `<span class="sw" style="background:${CAT[i%CAT.length]}"></span><span>${d[0]} · ${fmtNum(d[1])}</span>`;
+    legWrap.appendChild(li); });
+  container.appendChild(legWrap);
+}
+
+/* Choropleth of Colombia departments. valueMap: code -> value */
+function choropleth(container, valueMap, opts){
+  opts = opts||{};
+  const h = 300;
+  const {svg,w} = svgIn(container, h);
+  const projection = d3.geoMercator().fitExtent([[8,8],[w-8,h-8]], GEO);
+  const path = d3.geoPath(projection);
+  const vals = Array.from(valueMap.values()).filter(v=>v>0);
+  const maxV = d3.max(vals) || 1;
+  const seqSteps = [getVar("--seq-100"),getVar("--seq-250"),getVar("--seq-400"),getVar("--seq-550"),getVar("--seq-700")];
+  const color = d3.scaleQuantize().domain([0,maxV]).range(seqSteps);
+  svg.append("g").selectAll("path").data(GEO.features).enter().append("path")
+    .attr("d",path)
+    .attr("fill", d => { const v = valueMap.get(d.properties.code); return (v&&v>0) ? color(v) : getVar("--grid"); })
+    .attr("stroke", getVar("--surface")).attr("stroke-width",0.75)
+    .style("cursor","pointer")
+    .on("mousemove",(e,d)=>{ const v = valueMap.get(d.properties.code)||0;
+      showTip(`<b>${d.properties.name}</b><div class="row"><span>${opts.valueLabel||"Valor"}</span><span>${opts.fmt?opts.fmt(v):fmtNum(v)}</span></div>`,e); })
+    .on("mouseleave",hideTip);
+  // legend scale
+  const legW = 120, legX = 10, legY = h-18;
+  const lg = svg.append("g").attr("transform",`translate(${legX},${legY})`);
+  seqSteps.forEach((c,i)=>{ lg.append("rect").attr("x",i*(legW/seqSteps.length)).attr("width",legW/seqSteps.length-1).attr("height",8).attr("fill",c); });
+  lg.append("text").attr("x",0).attr("y",-4).attr("font-size",9).attr("fill",getVar("--muted")).text("Menor");
+  lg.append("text").attr("x",legW).attr("y",-4).attr("font-size",9).attr("fill",getVar("--muted")).attr("text-anchor","end").text("Mayor");
+}
+
+/* Treemap. data: [[label,value]] */
+function treemapChart(container, data, opts){
+  opts = opts||{};
+  if (!data.length) return noData(container);
+  const top = data.slice().sort((a,b)=>b[1]-a[1]).slice(0, opts.topN||14);
+  const h = 300;
+  const {svg,w} = svgIn(container, h);
+  const root = d3.hierarchy({children: top.map(d=>({name:d[0],value:d[1]}))}).sum(d=>d.value);
+  d3.treemap().size([w,h]).paddingInner(2).paddingOuter(2)(root);
+  const nodes = svg.selectAll("g.n").data(root.leaves()).enter().append("g")
+    .attr("transform",d=>`translate(${d.x0},${d.y0})`);
+  nodes.append("rect").attr("width",d=>Math.max(0,d.x1-d.x0)).attr("height",d=>Math.max(0,d.y1-d.y0))
+    .attr("fill",(d,i)=>CAT[i%CAT.length]).attr("rx",3).attr("stroke",getVar("--surface")).attr("stroke-width",2)
+    .style("cursor","pointer")
+    .on("mousemove",(e,d)=>showTip(`<b>${d.data.name}</b><div class="row"><span>${opts.valueLabel||"Valor"}</span><span>${opts.fmt?opts.fmt(d.value):fmtNum(d.value)}</span></div>`,e))
+    .on("mouseleave",hideTip);
+  nodes.filter(d=> (d.x1-d.x0)>46 && (d.y1-d.y0)>22).append("text").attr("x",6).attr("y",16)
+    .attr("font-size",10.5).attr("font-weight",600).attr("fill","#fff")
+    .text(d=> (d.x1-d.x0)<90 ? (d.data.name.length>10?d.data.name.slice(0,9)+"…":d.data.name) : (d.data.name.length>22?d.data.name.slice(0,21)+"…":d.data.name));
+  nodes.filter(d=> (d.x1-d.x0)>46 && (d.y1-d.y0)>36).append("text").attr("x",6).attr("y",30)
+    .attr("font-size",9.5).attr("fill","rgba(255,255,255,.85)")
+    .text(d=> opts.fmt?opts.fmt(d.value):fmtNum(d.value));
+}
+
+/* Circle packing. data: [[label,value]] */
+function packChart(container, data, opts){
+  opts = opts||{};
+  if (!data.length) return noData(container);
+  const top = data.slice().sort((a,b)=>b[1]-a[1]).slice(0, opts.topN||24);
+  const size = 300;
+  const {svg,w} = svgIn(container, size);
+  const root = d3.hierarchy({children: top.map(d=>({name:d[0],value:d[1]}))}).sum(d=>d.value);
+  d3.pack().size([w-4,size-4]).padding(3)(root);
+  const g = svg.append("g").attr("transform","translate(2,2)");
+  const nodes = g.selectAll("g.c").data(root.leaves()).enter().append("g").attr("transform",d=>`translate(${d.x},${d.y})`);
+  nodes.append("circle").attr("r",d=>d.r).attr("fill",(d,i)=>CAT[i%CAT.length]).attr("opacity",0.88)
+    .attr("stroke",getVar("--surface")).attr("stroke-width",1.5)
+    .style("cursor","pointer")
+    .on("mousemove",(e,d)=>showTip(`<b>${d.data.name}</b><div class="row"><span>${opts.valueLabel||"Proyectos"}</span><span>${fmtNum(d.value)}</span></div>`,e))
+    .on("mouseleave",hideTip);
+  nodes.filter(d=>d.r>22).append("text").attr("text-anchor","middle").attr("y",-1).attr("font-size",d=>Math.min(11,d.r/3.2))
+    .attr("font-weight",600).attr("fill","#fff").style("pointer-events","none")
+    .text(d=> d.data.name.length>14? d.data.name.slice(0,13)+"…" : d.data.name);
+  nodes.filter(d=>d.r>22).append("text").attr("text-anchor","middle").attr("y",11).attr("font-size",d=>Math.min(10,d.r/3.6))
+    .attr("fill","rgba(255,255,255,.85)").style("pointer-events","none").text(d=>fmtNum(d.value));
+}
+
+/* Vertical bar chart by year: data [[year, count, sumValor]] */
+function yearBarChart(container, data, opts){
+  opts = opts||{};
+  if (!data.length) return noData(container);
+  const sorted = data.slice().sort((a,b)=>a[0]-b[0]);
+  const pad = {t:16,r:14,b:26,l:38}, h=260;
+  const {svg,w} = svgIn(container,h);
+  const innerW = w-pad.l-pad.r, innerH = h-pad.t-pad.b;
+  const x = d3.scaleBand().domain(sorted.map(d=>d[0])).range([0,innerW]).padding(0.35);
+  const y = d3.scaleLinear().domain([0, d3.max(sorted,d=>d[1])||1]).nice().range([innerH,0]);
+  const g = svg.append("g").attr("transform",`translate(${pad.l},${pad.t})`);
+  g.selectAll("line.gy").data(y.ticks(4)).enter().append("line").attr("class","gridline")
+    .attr("x1",0).attr("x2",innerW).attr("y1",y).attr("y2",y);
+  g.selectAll("text.gy").data(y.ticks(4)).enter().append("text").attr("x",-6).attr("y",d=>y(d)+3)
+    .attr("text-anchor","end").attr("font-size",9.5).attr("fill",getVar("--muted")).text(d=>fmtNum(d));
+  g.selectAll("rect").data(sorted).enter().append("rect")
+    .attr("x",d=>x(d[0])).attr("width",x.bandwidth()).attr("y",d=>y(d[1])).attr("height",d=>innerH-y(d[1]))
+    .attr("rx",3).attr("fill",getVar("--accent")).style("cursor","pointer")
+    .on("mousemove",(e,d)=>showTip(`<b>${d[0]}</b><div class="row"><span>Proyectos</span><span>${fmtNum(d[1])}</span></div><div class="row"><span>Inversión</span><span>${fmtCOPShort(d[2])}</span></div>`,e))
+    .on("mouseleave",hideTip);
+  g.selectAll("text.xt").data(sorted).enter().append("text").attr("x",d=>x(d[0])+x.bandwidth()/2)
+    .attr("y",innerH+16).attr("text-anchor","middle").attr("font-size",10).attr("fill",getVar("--text2")).text(d=>d[0]);
+  g.append("line").attr("class","gridline").attr("x1",0).attr("x2",innerW).attr("y1",innerH).attr("y2",innerH).attr("stroke",getVar("--baseline"));
+}
+
+/* ==================== page layout per tab ==================== */
+function buildTabsRow(){
+  const row = document.getElementById("tabsRow");
+  row.innerHTML = "";
+  SHEET_TABS.forEach(s => {
+    const b = document.createElement("button"); b.className = "tab" + (s.key===state.activeTab?" active":"");
+    b.textContent = s.tab; b.dataset.key = s.key;
+    b.addEventListener("click", () => { state.activeTab = s.key; buildTabsRow(); buildSidebar(); buildMain(); renderActiveTab(); });
+    row.appendChild(b);
+  });
+}
+
+function buildSidebar(){
+  const key = state.activeTab;
+  const present = sheetFields(key);
+  const recs = DATA[key].records;
+  const side = document.getElementById("sidebar");
+  side.innerHTML = "";
+  const h = document.createElement("div"); h.className="section-title"; h.textContent="Filtros geográficos";
+  side.appendChild(h);
+  ["departamento","municipio"].forEach(field => {
+    if (!present.has(field)) return;
+    const block = document.createElement("div"); block.className="filter-block";
+    const counts = uniqueCounts(recs, field);
+    const opts = Array.from(counts.entries()).sort((a,b)=> b[1]-a[1] || a[0].localeCompare(b[0]));
+    buildMultiselect(block, key, field, FILTER_FIELDS.find(f=>f.field===field).label, opts);
+    side.appendChild(block);
+  });
+}
+
+function buildMain(){
+  const key = state.activeTab;
+  const present = sheetFields(key);
+  const sheetInfo = DATA[key];
+  const cfg = CFG[key];
+  const main = document.getElementById("mainArea");
+  main.innerHTML = "";
+
+  // top filters row (non-geo dimensions)
+  const frow = document.createElement("div"); frow.className="filters-row";
+  ["viceministerio","componente","programa","estado","fuente_financiacion","dependencia","tipo_proyecto"].forEach(field => {
+    if (!present.has(field)) return;
+    const counts = uniqueCounts(sheetInfo.records, field);
+    const opts = Array.from(counts.entries()).sort((a,b)=> b[1]-a[1] || a[0].localeCompare(b[0]));
+    if (opts.length < 2) return;
+    buildMultiselect(frow, key, field, FILTER_FIELDS.find(f=>f.field===field).label, opts);
+  });
+  main.appendChild(frow);
+
+  const head = document.createElement("div"); head.className="pagehead";
+  head.innerHTML = `<h1>${sheetInfo.title}</h1><p>${sheetInfo.subtitle}</p>`;
+  main.appendChild(head);
+
+  const kpis = document.createElement("div"); kpis.className="kpi-row"; kpis.id="kpiRow";
+  main.appendChild(kpis);
+
+  const g1 = document.createElement("div"); g1.className="grid2";
+  g1.innerHTML = `
+    <div class="card"><div class="card-h">Inversión por Departamento</div><div class="card-b" id="mapChart"></div></div>
+    <div class="card"><div class="card-h">Top Municipios por Inversión</div><div class="card-b" id="topMuniChart"></div></div>`;
+  main.appendChild(g1);
+
+  const g2 = document.createElement("div"); g2.className="grid2";
+  g2.innerHTML = `
+    <div class="card"><div class="card-h" id="donutHead">Proyectos por Viceministerio</div><div class="card-b" id="donutChart"></div></div>
+    <div class="card"><div class="card-h" id="rankedHead">Proyectos por Dependencia</div><div class="card-b" id="rankedChart"></div></div>`;
+  main.appendChild(g2);
+
+  const g3 = document.createElement("div"); g3.className="grid2";
+  g3.innerHTML = `
+    <div class="card"><div class="card-h">Estado de Ejecución</div><div class="card-b" id="estadoChart"></div></div>
+    <div class="card"><div class="card-h">Proyectos por Año de Entrega</div><div class="card-b" id="yearChart"></div></div>`;
+  main.appendChild(g3);
+
+  const g4 = document.createElement("div"); g4.className="grid2";
+  g4.innerHTML = `
+    <div class="card"><div class="card-h">Resumen por Programa <span class="n" id="programCount"></span></div><div class="card-b pad0" id="programTable"></div></div>
+    <div class="card"><div class="card-h">Programa e Inversión</div><div class="card-b" id="treemapChart"></div></div>`;
+  main.appendChild(g4);
+
+  const g5 = document.createElement("div"); g5.className="grid2";
+  g5.innerHTML = `
+    <div class="card"><div class="card-h">Tipos de Proyecto</div><div class="card-b" id="packChart"></div></div>
+    <div class="card"><div class="card-h">Próximas Entregas</div><div class="card-b pad0" id="upcomingTable"></div></div>`;
+  main.appendChild(g5);
+
+  const detCard = document.createElement("div"); detCard.className="card"; detCard.style.marginBottom="12px";
+  detCard.innerHTML = `<div class="card-h">Detalle de Proyectos <span class="n" id="detailCount"></span></div><div class="card-b pad0" id="detailTable"></div>`;
+  main.appendChild(detCard);
+}
+
+function renderActiveTab(){
+  const key = state.activeTab;
+  const cfg = CFG[key];
+  const recs = applyFilters(key);
+  const present = sheetFields(key);
+
+  // ---- KPIs
+  const kpiRow = document.getElementById("kpiRow");
+  const totalInv = d3.sum(recs, r=>Number(r.valor_total)||0);
+  const totalPersonas = d3.sum(recs, r=>Number(r.personas)||0);
+  const totalFamilias = present.has("familias") ? d3.sum(recs, r=>Number(r.familias)||0) : null;
+  let kpi4val;
+  if (cfg.kpi4.agg === "sum") kpi4val = d3.sum(recs, r=>Number(r[cfg.kpi4.field])||0);
+  else kpi4val = new Set(recs.map(r=>r[cfg.kpi4.field]).filter(Boolean)).size;
+
+  const upcoming = recs.filter(r=>r.fecha_entrega && new Date(r.fecha_entrega+"T00:00:00") >= TODAY)
+    .sort((a,b)=> new Date(a.fecha_entrega) - new Date(b.fecha_entrega));
+  const nextDate = upcoming.length ? upcoming[0].fecha_entrega : null;
+  const daysAway = nextDate ? Math.round((new Date(nextDate+"T00:00:00")-TODAY)/86400000) : null;
+
+  const tiles = [
+    {label:"Proyectos", value: fmtNum(recs.length), sub:`de ${DATA[key].records.length} totales`},
+    {label:"Inversión Total", value: fmtCOPShort(totalInv), sub: fmtCOP(totalInv)},
+    {label:"Personas Beneficiadas", value: fmtNum(totalPersonas), sub: totalFamilias!=null?`${fmtNum(totalFamilias)} familias`:""},
+    {label: cfg.kpi4.label, value: fmtNum(kpi4val), sub:""},
+    {label:"Próxima Entrega", value: nextDate?fmtDate(nextDate):"—", sub: daysAway!=null?`en ${daysAway} días · ${upcoming.length} pendientes`:"sin fechas futuras"},
+  ];
+  kpiRow.innerHTML = tiles.map(t=>`<div class="kpi"><div class="label"><span class="dot"></span>${t.label}</div><div class="value tabular">${t.value}</div><div class="sub">${t.sub}</div></div>`).join("");
+
+  // ---- map: inversión por departamento
+  const byDept = sumBy(recs, "deptcode", "valor_total");
+  choropleth(document.getElementById("mapChart"), byDept, {valueLabel:"Inversión", fmt:fmtCOPShort});
+
+  // ---- top municipios
+  const byMuni = sumBy(recs, "municipio", "valor_total");
+  const muniTop = Array.from(byMuni.entries()).sort((a,b)=>b[1]-a[1]).slice(0,12);
+  hbarChart(document.getElementById("topMuniChart"), muniTop, {valueLabel:"Inversión", fmt:fmtCOPShort, topN:12});
+
+  // ---- donut
+  document.getElementById("donutHead").textContent = "Proyectos por " + cfg.donutLbl;
+  const donutData = Array.from(uniqueCounts(recs, cfg.donut).entries());
+  donutChart(document.getElementById("donutChart"), donutData, {valueLabel:"Proyectos", centerLabel:"proyectos"});
+
+  // ---- ranked bar
+  document.getElementById("rankedHead").textContent = "Proyectos por " + cfg.rankedLbl;
+  const rankedData = Array.from(uniqueCounts(recs, cfg.ranked).entries()).sort((a,b)=>b[1]-a[1]);
+  hbarChart(document.getElementById("rankedChart"), rankedData, {valueLabel:"Proyectos", fmt:fmtNum, topN:10, color:getVar("--aqua")});
+
+  // ---- estado
+  const estadoData = Array.from(uniqueCounts(recs, "estado").entries()).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  hbarChart(document.getElementById("estadoChart"), estadoData, {valueLabel:"Proyectos", fmt:fmtNum, topN:10, color:getVar("--orange"), labelW:150});
+
+  // ---- year bar (fecha_entrega)
+  const yearMap = new Map();
+  recs.forEach(r=>{ if(!r.fecha_entrega) return; const y = r.fecha_entrega.slice(0,4);
+    const cur = yearMap.get(y) || [0,0]; cur[0]+=1; cur[1]+= Number(r.valor_total)||0; yearMap.set(y,cur); });
+  const yearData = Array.from(yearMap.entries()).map(([y,v])=>[y,v[0],v[1]]);
+  yearBarChart(document.getElementById("yearChart"), yearData);
+
+  // ---- resumen por programa table
+  const progMap = new Map();
+  recs.forEach(r=>{ const p = r.programa||"—"; const cur = progMap.get(p) || {programa:p, conteo:0, inversion:0};
+    cur.conteo += 1; cur.inversion += Number(r.valor_total)||0; progMap.set(p,cur); });
+  const progRows = Array.from(progMap.values()).sort((a,b)=>b.conteo-a.conteo);
+  document.getElementById("programCount").textContent = progRows.length + " programas";
+  buildTable(document.getElementById("programTable"), [
+    {key:"programa", label:"Programa"},
+    {key:"conteo", label:"Conteo", num:true},
+    {key:"inversion", label:"Inversión", num:true, fmt:fmtCOPShort},
+  ], progRows, {pageSize:6});
+
+  // ---- treemap: programa e inversión
+  const progInvData = Array.from(progMap.values()).map(p=>[p.programa,p.inversion]).filter(d=>d[1]>0);
+  treemapChart(document.getElementById("treemapChart"), progInvData, {valueLabel:"Inversión", fmt:fmtCOPShort, topN:14});
+
+  // ---- pack: tipos de proyecto
+  const tipoData = Array.from(uniqueCounts(recs, "tipo_proyecto").entries());
+  packChart(document.getElementById("packChart"), tipoData, {valueLabel:"Proyectos", topN:24});
+
+  // ---- próximas entregas
+  const upcomingRows = upcoming.slice(0,50).map(r=>({
+    municipio:r.municipio, departamento:r.departamento, programa:r.programa, fecha_entrega:r.fecha_entrega
+  }));
+  if (upcomingRows.length){
+    buildTable(document.getElementById("upcomingTable"), [
+      {key:"departamento", label:"Depto"},
+      {key:"municipio", label:"Municipio"},
+      {key:"programa", label:"Programa"},
+      {key:"fecha_entrega", label:"Fecha", fmt:fmtDate},
+    ], upcomingRows, {pageSize:5});
+  } else {
+    document.getElementById("upcomingTable").innerHTML = '<div class="empty-note">No hay entregas futuras registradas</div>';
+  }
+
+  // ---- detail table
+  document.getElementById("detailCount").textContent = recs.length + " registros";
+  const detCols = [];
+  if (present.has("viceministerio")) detCols.push({key:"viceministerio", label:"Viceministerio"});
+  if (present.has("dependencia")) detCols.push({key:"dependencia", label:"Dependencia"});
+  if (present.has("componente")) detCols.push({key:"componente", label:"Componente"});
+  detCols.push({key:"departamento", label:"Departamento"});
+  detCols.push({key:"municipio", label:"Municipio"});
+  detCols.push({key:"programa", label:"Programa"});
+  detCols.push({key:"tipo_proyecto", label:"Tipo Proyecto"});
+  detCols.push({key:"fuente_financiacion", label:"Fuente Financ."});
+  detCols.push({key:"estado", label:"Estado"});
+  detCols.push({key:"valor_total", label:"Valor Total", num:true, fmt:fmtCOP});
+  buildTable(document.getElementById("detailTable"), detCols, recs, {pageSize:5});
+}
+
+let resizeTimer = null;
+window.addEventListener("resize", () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(renderActiveTab, 200); });
+
+/* ==================== boot ==================== */
+buildTabsRow();
+buildSidebar();
+buildMain();
+renderActiveTab();
+
+})();
+</script>
+
+</body></html>
